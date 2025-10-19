@@ -25,9 +25,6 @@
         .glowing-border-indigo {
             box-shadow: 0 0 20px rgba(99, 102, 241, 0.5), 0 0 8px rgba(99, 102, 241, 0.3);
         }
-        .status-pill {
-            transition: all 0.3s ease-in-out;
-        }
         #status-text {
              transition: opacity 0.5s ease-in-out;
         }
@@ -41,9 +38,9 @@
         }
     </style>
 </head>
-<body class="gradient-bg text-gray-200 min-h-screen flex flex-col items-center justify-center p-4">
+<body class="gradient-bg text-gray-200 min-h-screen flex flex-col items-center justify-start p-4 py-8">
 
-    <div class="w-full max-w-4xl mx-auto">
+    <div class="w-full max-w-6xl mx-auto">
         <!-- Header -->
         <header class="text-center mb-8">
             <div class="flex items-center justify-center space-x-3 mb-2">
@@ -53,6 +50,7 @@
             <p class="text-gray-400">AI-driven insights for the modern investor.</p>
         </header>
         
+        <div class="w-full max-w-4xl mx-auto">
         <!-- API Key Inputs -->
         <div class="card-bg rounded-xl p-6 md:p-8 mb-8">
             <h2 class="text-lg font-semibold text-white mb-4">API Keys</h2>
@@ -82,11 +80,12 @@
                 </button>
             </div>
         </div>
+        </div>
 
         <!-- Results Section -->
         <div id="results-container" class="opacity-0 transition-opacity duration-1000">
             <!-- Loading State -->
-            <div id="loading-state" class="hidden card-bg rounded-xl p-8 text-center">
+            <div id="loading-state" class="hidden card-bg rounded-xl p-8 text-center max-w-md mx-auto">
                 <div class="flex items-center justify-center space-x-4">
                     <div role="status">
                         <svg aria-hidden="true" class="w-8 h-8 text-gray-200 animate-spin dark:text-gray-600 fill-indigo-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -100,7 +99,7 @@
             </div>
 
             <!-- Error State -->
-            <div id="error-state" class="hidden card-bg rounded-xl p-8 text-center">
+            <div id="error-state" class="hidden card-bg rounded-xl p-8 text-center max-w-md mx-auto">
                  <i data-lucide="alert-triangle" class="w-12 h-12 text-red-400 mx-auto mb-4"></i>
                  <h3 class="text-xl font-semibold text-white mb-2">Analysis Failed</h3>
                  <p id="error-message" class="text-red-300">Could not retrieve data. Please check the ticker and API keys.</p>
@@ -108,20 +107,37 @@
 
             <!-- Main Results -->
             <div id="main-results" class="hidden">
-                 <div class="card-bg rounded-xl p-6 mb-6">
-                    <h3 class="text-2xl font-bold text-white mb-4" id="result-ticker"></h3>
-                    <div class="h-80 md:h-96 w-full">
-                        <canvas id="stock-chart"></canvas>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Chart & Short-term -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="card-bg rounded-xl p-6">
+                            <h3 class="text-2xl font-bold text-white mb-4" id="result-ticker"></h3>
+                            <div class="h-80 md:h-96 w-full">
+                                <canvas id="stock-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card-bg rounded-xl p-6">
+                            <h3 class="text-xl font-semibold text-white mb-4">Short-Term Analysis</h3>
+                            <div id="short-term-predictions-container" class="space-y-6">
+                                <!-- Short-term predictions will go here -->
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="card-bg rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-white mb-4">Gemini AI Multi-Model Analysis</h3>
-                    <div id="predictions-container" class="space-y-6">
-                        <!-- AI predictions will be inserted here -->
+
+                    <!-- Right Column: Long-term Forecast -->
+                    <div class="lg:col-span-1 space-y-6">
+                        <div class="card-bg rounded-xl p-6">
+                            <h3 class="text-xl font-semibold text-white mb-4">Long-Term AI Forecast</h3>
+                            <div id="long-term-container" class="space-y-4">
+                                <!-- Investment Thesis will go here -->
+                            </div>
+                            <div class="mt-6 space-y-4" id="price-targets-container">
+                                <!-- Price targets will go here -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
         </div>
 
         <!-- Disclaimer -->
@@ -132,7 +148,6 @@
         </footer>
     </div>
 
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
@@ -141,26 +156,17 @@
             const predictBtn = document.getElementById('predict-btn');
             const alphaVantageKeyInput = document.getElementById('alpha-vantage-key');
             const geminiKeyInput = document.getElementById('gemini-key');
-
             const resultsContainer = document.getElementById('results-container');
             const loadingState = document.getElementById('loading-state');
             const errorState = document.getElementById('error-state');
             const errorMessage = document.getElementById('error-message');
             const statusText = document.getElementById('status-text');
             const mainResults = document.getElementById('main-results');
-            
-            const resultTicker = document.getElementById('result-ticker');
-            const predictionsContainer = document.getElementById('predictions-container');
-
             const chartCanvas = document.getElementById('stock-chart');
             let stockChart = null;
 
             predictBtn.addEventListener('click', runPrediction);
-            tickerInput.addEventListener('keyup', (event) => {
-                if (event.key === 'Enter') {
-                    runPrediction();
-                }
-            });
+            tickerInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') runPrediction(); });
 
             async function runPrediction() {
                 const ticker = tickerInput.value.trim().toUpperCase();
@@ -172,81 +178,95 @@
                     return;
                 }
 
-                // Reset UI
                 mainResults.classList.add('hidden');
                 errorState.classList.add('hidden');
                 resultsContainer.classList.remove('opacity-0');
                 loadingState.classList.remove('hidden');
                 
                 try {
-                    updateStatus("Fetching market data from Alpha Vantage...");
-                    const stockData = await getAlphaVantageData(ticker, avKey);
-                    
-                    if (!stockData) {
+                    updateStatus("Fetching market data & financials...");
+                    const [stockData, fundamentalData] = await Promise.all([
+                        fetchAlphaVantage(ticker, avKey, 'TIME_SERIES_DAILY_ADJUSTED'),
+                        fetchAlphaVantage(ticker, avKey, 'OVERVIEW'),
+                        fetchAlphaVantage(ticker, avKey, 'INCOME_STATEMENT'),
+                        fetchAlphaVantage(ticker, avKey, 'CASH_FLOW')
+                    ]);
+
+                    const timeSeries = stockData['Time Series (Daily)'];
+                    const [overview, incomeStatement, cashFlow] = fundamentalData;
+
+                    if (!timeSeries || !overview.Symbol) {
                          throw new Error("Invalid response from Alpha Vantage. The ticker might be incorrect or the API limit reached.");
                     }
 
-                    updateStatus("Running Gemini AI analysis models...");
-                    const analyses = await getGeminiAnalyses(stockData, geminiKey);
+                    updateStatus("Generating AI analyses with Gemini...");
+                    const analyses = await getGeminiAnalyses(timeSeries, { overview, incomeStatement, cashFlow }, geminiKey);
 
-                    displayResults(ticker, stockData, analyses);
+                    displayResults(ticker, timeSeries, analyses);
 
                 } catch (error) {
                     console.error("Prediction pipeline error:", error);
                     showError(error.message);
                 }
             }
-            
+
             function updateStatus(message) {
                  statusText.style.opacity = '0';
-                 setTimeout(() => {
-                    statusText.textContent = message;
-                    statusText.style.opacity = '1';
-                }, 300);
+                 setTimeout(() => { statusText.textContent = message; statusText.style.opacity = '1'; }, 300);
             }
 
             function showError(message) {
                 loadingState.classList.add('hidden');
-                mainResults.classList.add('hidden');
                 errorMessage.textContent = message;
                 errorState.classList.remove('hidden');
-                resultsContainer.classList.remove('opacity-0');
-            }
-            
-            async function getAlphaVantageData(ticker, apiKey) {
-                const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${ticker}&outputsize=compact&apikey=${apiKey}`;
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error("Network response from Alpha Vantage was not ok.");
-                }
-                const data = await response.json();
-                if (data['Error Message'] || !data['Time Series (Daily)']) {
-                    throw new Error(data['Error Message'] || "Invalid ticker or data format from Alpha Vantage.");
-                }
-                return data['Time Series (Daily)'];
             }
 
-            async function getGeminiAnalyses(stockData, apiKey) {
+            async function fetchAlphaVantage(ticker, apiKey, func) {
+                if (['OVERVIEW', 'INCOME_STATEMENT', 'CASH_FLOW'].includes(func)) {
+                    const url = `https://www.alphavantage.co/query?function=${func}&symbol=${ticker}&apikey=${apiKey}`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Network error fetching ${func}.`);
+                    const data = await response.json();
+                     if (data.Note) throw new Error("Alpha Vantage API limit likely reached. Please try again later.");
+                    return data;
+                }
+                if (func === 'TIME_SERIES_DAILY_ADJUSTED') {
+                     const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${ticker}&outputsize=compact&apikey=${apiKey}`;
+                     const response = await fetch(url);
+                     if (!response.ok) throw new Error("Network error fetching time series.");
+                     return response.json();
+                }
+            }
+
+            async function getGeminiAnalyses(stockData, fundamentalData, apiKey) {
                 const recentData = Object.entries(stockData).slice(0, 30).map(([date, values]) => {
                     return `Date: ${date}, Close: ${values['4. close']}, Volume: ${values['6. volume']}`;
                 }).join('\n');
 
+                const { overview, incomeStatement, cashFlow } = fundamentalData;
+                const lastClose = parseFloat(Object.values(stockData)[0]['4. close']).toFixed(2);
+                
                 const models = [
-                    {
-                        name: "Technical Analyst",
-                        icon: "bar-chart-2",
-                        prompt: `Act as a senior technical analyst. Based on the following 30 days of stock data, provide a short, one-paragraph technical analysis. Focus on trends, support/resistance, and volume. Conclude with a single-word sentiment: BULLISH, BEARISH, or NEUTRAL. Data:\n${recentData}`
+                     {
+                        name: "Long-Term Fundamental Forecast",
+                        icon: "trending-up",
+                        prompt: `Act as a senior investment analyst for ${overview.Name} (${overview.Symbol}).
+                            Current Stock Price: $${lastClose}.
+                            Company Financials:
+                            - Market Cap: ${parseInt(overview.MarketCapitalization).toLocaleString()}
+                            - P/E Ratio: ${overview.PERatio}
+                            - Latest Annual Revenue: ${parseInt(incomeStatement.annualReports[0].totalRevenue).toLocaleString()}
+                            - Latest Annual Operating Cash Flow: ${parseInt(cashFlow.annualReports[0].operatingCashflow).toLocaleString()}
+                            
+                            Based on these strong financials and recent market sentiment, provide a long-term forecast.
+                            1.  **Investment Thesis:** A concise two-paragraph summary explaining the long-term potential.
+                            2.  **Price Targets:** Provide your price predictions in the exact format below.
+                                - 1-Year Target: $[NUMBER]
+                                - 3-Year Target: $[NUMBER]
+                                - 5-Year Target: $[NUMBER]`
                     },
-                    {
-                        name: "Sentiment Analyst",
-                        icon: "user-round",
-                        prompt: `Act as a market sentiment analyst. Imagine you have access to news headlines and social media. Based on the price action of the last 30 days, infer the likely market sentiment. Provide a one-paragraph summary of this sentiment. Conclude with a single-word sentiment: POSITIVE, NEGATIVE, or NEUTRAL. Data:\n${recentData}`
-                    },
-                    {
-                        name: "Quantitative Analyst",
-                        icon: "calculator",
-                        prompt: `Act as a quantitative analyst. Based on the provided 30 days of price and volume data, give a brief, data-driven assessment. Mention volatility and trading range. Provide a one-paragraph summary. Conclude with a single-word outlook: STABLE, VOLATILE, or UNCERTAIN. Data:\n${recentData}`
-                    }
+                    { name: "Technical Analyst", icon: "bar-chart-2", prompt: `Technical analysis for the last 30 days of price data. Conclude with BULLISH, BEARISH, or NEUTRAL. Data:\n${recentData}` },
+                    { name: "Sentiment Analyst", icon: "user-round", prompt: `Market sentiment analysis based on recent price action. Conclude with POSITIVE, NEGATIVE, or NEUTRAL. Data:\n${recentData}` },
                 ];
                 
                 const promises = models.map(model => callGemini(model.prompt, apiKey, model));
@@ -255,62 +275,69 @@
             
             async function callGemini(prompt, apiKey, modelData) {
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                const payload = {
-                    contents: [{ parts: [{ text: prompt }] }]
-                };
+                const payload = { contents: [{ parts: [{ text: prompt }] }] };
 
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) {
-                    const errorBody = await response.json();
-                    console.error("Gemini API Error:", errorBody);
-                    throw new Error(`Gemini API request failed for ${modelData.name}.`);
-                }
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`Gemini API request failed for ${modelData.name}.`);
 
                 const result = await response.json();
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "No analysis generated.";
-                
                 return { ...modelData, analysis: text };
             }
 
-
             function displayResults(ticker, stockData, analyses) {
-                resultTicker.textContent = `Analysis for ${ticker}`;
+                document.getElementById('result-ticker').textContent = `Analysis for ${ticker}`;
+                const [longTerm, technical, sentiment] = analyses;
                 
-                predictionsContainer.innerHTML = ''; // Clear previous results
-                analyses.forEach(item => {
-                    const analysisHtml = `
-                        <div class="border border-slate-700 rounded-lg p-4">
-                            <div class="flex items-center mb-2">
-                                <i data-lucide="${item.icon}" class="w-5 h-5 text-indigo-400 mr-3"></i>
-                                <h4 class="font-semibold text-white">${item.name}</h4>
-                            </div>
-                            <p class="text-sm text-gray-400">${item.analysis.replace(/BULLISH|BEARISH|NEUTRAL|POSITIVE|NEGATIVE|STABLE|VOLATILE|UNCERTAIN/g, '<span class="font-bold text-indigo-300">$&</span>')}</p>
+                // Long-Term Forecast
+                const thesisMatch = longTerm.analysis.match(/Investment Thesis:([\s\S]*?)Price Targets:/);
+                const thesis = thesisMatch ? thesisMatch[1].trim() : "Could not parse investment thesis.";
+                document.getElementById('long-term-container').innerHTML = `
+                    <div>
+                        <div class="flex items-center mb-2">
+                            <i data-lucide="file-text" class="w-5 h-5 text-indigo-400 mr-3"></i>
+                            <h4 class="font-semibold text-white">Investment Thesis</h4>
                         </div>
-                    `;
-                    predictionsContainer.insertAdjacentHTML('beforeend', analysisHtml);
+                        <p class="text-sm text-gray-400 whitespace-pre-line">${thesis}</p>
+                    </div>`;
+
+                const targetsContainer = document.getElementById('price-targets-container');
+                targetsContainer.innerHTML = '';
+                const targets = [
+                    { label: '1-Year Target', value: longTerm.analysis.match(/1-Year Target: \$?([\d,]+\.?\d*)/) },
+                    { label: '3-Year Target', value: longTerm.analysis.match(/3-Year Target: \$?([\d,]+\.?\d*)/) },
+                    { label: '5-Year Target', value: longTerm.analysis.match(/5-Year Target: \$?([\d,]+\.?\d*)/) }
+                ];
+                 targets.forEach(target => {
+                    targetsContainer.innerHTML += `
+                        <div class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg">
+                            <span class="text-sm font-medium text-gray-300">${target.label}</span>
+                            <span class="text-lg font-bold text-indigo-300">$${target.value ? target.value[1] : 'N/A'}</span>
+                        </div>`;
                 });
-                lucide.createIcons(); // Re-render icons
 
+                // Short-Term Analyses
+                const shortTermContainer = document.getElementById('short-term-predictions-container');
+                shortTermContainer.innerHTML = [technical, sentiment].map(item => `
+                    <div class="border border-slate-700 rounded-lg p-4">
+                        <div class="flex items-center mb-2">
+                            <i data-lucide="${item.icon}" class="w-5 h-5 text-indigo-400 mr-3"></i>
+                            <h4 class="font-semibold text-white">${item.name}</h4>
+                        </div>
+                        <p class="text-sm text-gray-400">${item.analysis.replace(/BULLISH|BEARISH|NEUTRAL|POSITIVE|NEGATIVE/g, '<span class="font-bold text-indigo-300">$&</span>')}</p>
+                    </div>
+                `).join('');
+
+                lucide.createIcons();
                 loadingState.classList.add('hidden');
-                errorState.classList.add('hidden');
                 mainResults.classList.remove('hidden');
-
                 renderChart(stockData);
             }
 
             function renderChart(stockData) {
-                if (stockChart) {
-                    stockChart.destroy();
-                }
-
+                if (stockChart) stockChart.destroy();
                 const dates = Object.keys(stockData).reverse();
                 const prices = dates.map(date => parseFloat(stockData[date]['4. close']));
-
                 const ctx = chartCanvas.getContext('2d');
                 const gradient = ctx.createLinearGradient(0, 0, 0, 400);
                 gradient.addColorStop(0, 'rgba(99, 102, 241, 0.5)');
@@ -320,43 +347,20 @@
                     type: 'line',
                     data: {
                         labels: dates.map(d => new Date(d).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})),
-                        datasets: [
-                            {
-                                label: 'Adjusted Close Price',
-                                data: prices,
-                                borderColor: '#6366f1',
-                                borderWidth: 2,
-                                pointRadius: 0,
-                                fill: true,
-                                backgroundColor: gradient,
-                                tension: 0.4
-                            }
-                        ]
+                        datasets: [{
+                            label: 'Adjusted Close Price', data: prices, borderColor: '#6366f1',
+                            borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: gradient, tension: 0.4
+                        }]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                        responsive: true, maintainAspectRatio: false,
                         scales: {
-                            x: {
-                                ticks: { color: '#9ca3af' },
-                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                            },
-                            y: {
-                                ticks: {
-                                    color: '#9ca3af',
-                                    callback: value => '$' + value.toFixed(2)
-                                },
-                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                            }
+                            x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                            y: { ticks: { color: '#9ca3af', callback: value => '$' + value.toFixed(2) }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
                         },
                         plugins: {
                             legend: { labels: { color: '#d1d5db' } },
-                            tooltip: {
-                                enabled: true, mode: 'index', intersect: false,
-                                callbacks: {
-                                    label: context => `Price: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y)}`
-                                }
-                            }
+                            tooltip: { enabled: true, mode: 'index', intersect: false, callbacks: { label: c => `Price: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(c.parsed.y)}` } }
                         }
                     }
                 });

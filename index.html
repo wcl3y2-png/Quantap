@@ -185,15 +185,14 @@
                 
                 try {
                     updateStatus("Fetching market data & financials...");
-                    const [stockData, fundamentalData] = await Promise.all([
+                    const [stockData, overview, incomeStatement, cashFlow] = await Promise.all([
                         fetchAlphaVantage(ticker, avKey, 'TIME_SERIES_DAILY_ADJUSTED'),
                         fetchAlphaVantage(ticker, avKey, 'OVERVIEW'),
                         fetchAlphaVantage(ticker, avKey, 'INCOME_STATEMENT'),
-                        fetchAlphaVantage(ticker, avKey, 'CASH_FLOW')
+                        fetchAlphaVantag(ticker, avKey, 'CASH_FLOW')
                     ]);
 
                     const timeSeries = stockData['Time Series (Daily)'];
-                    const [overview, incomeStatement, cashFlow] = fundamentalData;
 
                     if (!timeSeries || !overview.Symbol) {
                          throw new Error("Invalid response from Alpha Vantage. The ticker might be incorrect or the API limit reached.");
@@ -369,4 +368,5 @@
     </script>
 </body>
 </html>
+
 
